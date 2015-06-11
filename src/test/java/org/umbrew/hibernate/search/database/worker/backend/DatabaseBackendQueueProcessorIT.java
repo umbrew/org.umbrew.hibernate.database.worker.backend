@@ -26,23 +26,14 @@ import static org.junit.Assert.assertEquals;
 import static org.junit.Assert.assertNotNull;
 import static org.junit.Assert.assertNotSame;
 
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 
 import javax.inject.Inject;
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
-import javax.persistence.EntityTransaction;
 import javax.persistence.PersistenceContext;
-import javax.persistence.Query;
 import javax.transaction.UserTransaction;
 
-import org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver;
-import org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl;
-import org.hibernate.jpa.boot.internal.ParsedPersistenceXmlDescriptor;
+import org.hibernate.Session;
 import org.hibernate.search.jpa.FullTextEntityManager;
 import org.hibernate.search.jpa.FullTextQuery;
 import org.hibernate.search.jpa.Search;
@@ -52,114 +43,108 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
-import org.junit.Assert;
 import org.junit.Test;
 import org.junit.runner.RunWith;
+import org.umbrew.hibernate.search.database.worker.backend.impl.AbstractDatabaseHibernateSearchController;
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
 import org.umbrew.model.Message;
 
+/**
+ * 
+ * @author fharms
+ * @author moelholm
+ *
+ *
+ */
 @RunWith(Arquillian.class)
 public class DatabaseBackendQueueProcessorIT {
-
-    @Inject
-    private DatabaseBackendQueueProcessor databasebackendqueueprocessor;
 
     @PersistenceContext(name = "hibernate.search.database.worker.backend-persistence-unit")
     private EntityManager entityManager;
 
     @Inject
-    UserTransaction userTransaction;
+    private UserTransaction userTransaction;
 
     @Deployment
     public static WebArchive createDeployment() {
         return ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class)
                 .addClass(LuceneDatabaseWork.class).addPackage(DatabaseBackendQueueProcessor.class.getPackage())
+                .addClass(AbstractDatabaseHibernateSearchController.class)
                 .addAsResource("META-INF/persistence.xml", "META-INF/persistence.xml")
                 .addAsWebInfResource("META-INF/jboss-deployment-structure.xml", "jboss-deployment-structure.xml")
                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
     }
-    
+
     @Test
-    public void kat_slettes_af_hund() {
+    public void testDatabaseWorkerBackend() throws Exception {
 
-        Map<String, String> settings = new HashMap<String, String>();
+        // Given
+        insertOneMessageEntity();
+        assertEquals(1, countLuceneDatabaseWorkEntities());
 
-        settings.put("hibernate.connection.datasource", "java:jboss/datasources/ExampleDS");
-        settings.put("hibernate.hbm2ddl.auto", "create");
-        settings.put("hibernate.dialect_resolvers", StandardDialectResolver.class.getName());
+        // When
+        performIndexing();
+        List<Message> allIndexedMessages = findIndexedMessages();
 
-        ParsedPersistenceXmlDescriptor deploymentDescriptor = new ParsedPersistenceXmlDescriptor(null);
-        deploymentDescriptor.addClasses(LuceneDatabaseWork.class.getName());
-
-        ClassLoader classLoader = this.getClass().getClassLoader();
-        EntityManagerFactoryBuilderImpl builder = new EntityManagerFactoryBuilderImpl(deploymentDescriptor, settings,
-                classLoader);
-        EntityManagerFactory entityManagerFactory = builder.build();
-
-        EntityManager entityManager = entityManagerFactory.createEntityManager();
-
-        EntityTransaction tx = entityManager.getTransaction();
-
-        try {
-            tx.begin();
-
-            LuceneDatabaseWork luceneDatabaseWork = new LuceneDatabaseWork();
-            luceneDatabaseWork.setContent(new byte[0]);
-            luceneDatabaseWork.setIndexName("kalv");
-
-            entityManager.persist(luceneDatabaseWork);
-
-            System.out.println(">> wooHOOO");
-
-        } catch (Exception e) {
-            e.printStackTrace();
-
-        } finally {
-            tx.commit();
-
-        }
+        // Then
+        assertEquals(1, allIndexedMessages.size());
+        assertEquals("hello world", allIndexedMessages.iterator().next().getContent());
+        assertEquals(0, countLuceneDatabaseWorkEntities());
     }
 
-
-    @Test
-    public void should_be_deployed() {
-        Assert.assertNotNull(databasebackendqueueprocessor);
-    }
-
-    @Test
     @SuppressWarnings("unchecked")
-    public void entity_can_be_saved_and_read() throws Exception {
+    private List<Message> findIndexedMessages() {
+        FullTextEntityManager ft = Search.getFullTextEntityManager(entityManager);
+        QueryBuilder qb = ft.getSearchFactory().buildQueryBuilder().forEntity(Message.class).get();
+        org.apache.lucene.search.Query query = qb.keyword().onFields("content").matching("hello world").createQuery();
+        FullTextQuery fullTextQuery = ft.createFullTextQuery(query, Message.class);
+        return fullTextQuery.getResultList();
+    }
+
+    private int countLuceneDatabaseWorkEntities() throws Exception {
+        String query = String.format("from %s", LuceneDatabaseWork.class.getName());
+        @SuppressWarnings("unchecked")
+        List<LuceneDatabaseWork> databaseWorkItems = entityManager.createQuery(query).getResultList();
+        return databaseWorkItems.size();
+    }
+
+    private void insertOneMessageEntity() throws Exception {
         userTransaction.begin();
-        
-        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(String.format("from %s", LuceneDatabaseWork.class.getName())).getResultList();
-        assertEquals(0, databaseWorkItemsBefore.size());
-        
+        assertNoLuceneDatabaseWorkItemsInDatabase();
+
         Message helloWorldMessage = createAndPersistNewMessage("hello world");
         Message helloWorldMessageFromDatabase = entityManager.find(Message.class, helloWorldMessage.getId());
         assertNotNull(helloWorldMessageFromDatabase);
         assertNotSame(helloWorldMessage, helloWorldMessageFromDatabase);
-        
+
         userTransaction.commit();
-System.out.println("ko");
+    }
+
+    private void assertNoLuceneDatabaseWorkItemsInDatabase() {
+        String query = String.format("from %s", LuceneDatabaseWork.class.getName());
+        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(query).getResultList();
+        assertEquals(0, databaseWorkItemsBefore.size());
+    }
+
+    private void performIndexing() throws Exception {
+        System.out.println("kermitter nu");
         userTransaction.begin();
-System.out.println("tyr");        
-        List<LuceneDatabaseWork> databaseWorkItemsAfter = entityManager.createQuery(String.format("from %s", LuceneDatabaseWork.class.getName())).getResultList();
-System.out.println("Gris");        
-        assertEquals(1, databaseWorkItemsAfter.size());        
-        
-        FullTextEntityManager ft = Search.getFullTextEntityManager(entityManager);
-        QueryBuilder qb = ft.getSearchFactory().buildQueryBuilder().forEntity(Message.class).get();
-        org.apache.lucene.search.Query query = qb.keyword().onFields("content").matching("hello world").createQuery();
-        // wrap Lucene query in a org.hibernate.Query
-        FullTextQuery fullTextQuery = ft.createFullTextQuery(query, Message.class);
 
-        // execute search
-        @SuppressWarnings("unchecked")
-        List<Message> result = fullTextQuery.getResultList();
-        Assert.assertEquals(1, result.size());
-        Assert.assertEquals("hello world", ((Message) result.get(0)).getContent());
+        AbstractDatabaseHibernateSearchController abstractDatabaseHibernateSearchController = new AbstractDatabaseHibernateSearchController() {
+            @Override
+            protected Session getSession() {
+                return (Session) entityManager.getDelegate();
+            }
+
+            @Override
+            protected void cleanSessionIfNeeded(Session session) {
+                session.close();
+            }
+        };
+
+        abstractDatabaseHibernateSearchController.processWorkQueue();
         userTransaction.commit();
-
+        System.out.println("så er der sgu committed, ik?");
     }
 
     private Message createAndPersistNewMessage(String messageContent) {

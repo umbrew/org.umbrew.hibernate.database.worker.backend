@@ -30,10 +30,7 @@ import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 import java.util.concurrent.locks.ReentrantLock;
 
-import javax.naming.InitialContext;
-import javax.naming.NamingException;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityManagerFactory;
 import javax.persistence.spi.PersistenceUnitTransactionType;
 
 import org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver;
@@ -47,8 +44,13 @@ import org.hibernate.search.indexes.impl.DirectoryBasedIndexManager;
 import org.hibernate.search.spi.WorkerBuildContext;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
+import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager.DoWithEntityManagerTask;
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
 
+/**
+ * @author fharms
+ * @author moelholm
+ */
 public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     public static final String DATA_SOURCE = Environment.WORKER_PREFIX + "jdbc.datasource";
@@ -56,17 +58,14 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     private static final Log log = LoggerFactory.make();
 
-    private static EntityManagerFactory entityManagerFactory;
-
     private String dataSourceJndiName;
     private DirectoryBasedIndexManager indexManager;
     private String indexName;
     private String autoDDL;
-    private EntityManager createEntityManager;
 
     @Override
     public void initialize(Properties props, WorkerBuildContext context, DirectoryBasedIndexManager indexManager) {
-        log.info("Initializing...");
+        log.debug("Initializing...");
 
         this.indexManager = indexManager;
         this.indexName = indexManager.getIndexName();
@@ -80,8 +79,9 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
         validate();
 
-        this.createEntityManager = getEntityManagerFactory().createEntityManager();
-        log.info("Initialized");
+        initializeEntityManagerFactory();
+
+        log.debug("Initialized");
     }
 
     private void validate() {
@@ -93,18 +93,27 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     @Override
     public void close() {
-        log.info("Close");
-        createEntityManager.close();
+        EntityManagerFactoryHolder.getEntityManagerFactory().close();
+        log.debug("Closed");
     }
 
     @Override
     public void applyWork(List<LuceneWork> workList, IndexingMonitor monitor) {
+
         if (workList == null) {
             throw new IllegalArgumentException("workList should not be null");
         }
 
-        Runnable operation = new DatabaseBackendQueueTask(indexName, workList, indexManager, createEntityManager);
-        operation.run();
+        DoWithEntityManager.execute(new DoWithEntityManagerTask() {
+            @Override
+            public Void withEntityManager(EntityManager entityManager) {
+                DatabaseBackendQueueTask databaseBackendQueueTask = new DatabaseBackendQueueTask(indexName, workList,
+                        indexManager, entityManager);
+                databaseBackendQueueTask.run();
+                return null;
+            }
+        });
+
     }
 
     @Override
@@ -123,34 +132,28 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         // no-op
     }
 
-    private synchronized EntityManagerFactory getEntityManagerFactory() {
+    private synchronized void initializeEntityManagerFactory() {
 
-        if (entityManagerFactory == null) {
+        if (EntityManagerFactoryHolder.getEntityManagerFactory() == null) {
             Map<String, String> settings = new HashMap<String, String>();
 
             settings.put("hibernate.connection.datasource", this.dataSourceJndiName);
             settings.put("hibernate.hbm2ddl.auto", this.autoDDL);
             settings.put("hibernate.show_sql", "true");
-            settings.put("hibernate.format_sql","true");
+            settings.put("hibernate.format_sql", "true");
             settings.put("hibernate.dialect_resolvers", StandardDialectResolver.class.getName());
-            settings.put("hibernate.transaction.jta.platform","org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform");
+            settings.put("hibernate.transaction.jta.platform",
+                    "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform");
+
             ParsedPersistenceXmlDescriptor deploymentDescriptor = new ParsedPersistenceXmlDescriptor(null);
             deploymentDescriptor.addClasses(LuceneDatabaseWork.class.getName());
-            Object datasource;
-            try {
-                datasource = InitialContext.doLookup(this.dataSourceJndiName);
-                deploymentDescriptor.setJtaDataSource(datasource);
-            } catch (NamingException e) {
-                e.printStackTrace();
-            }
             deploymentDescriptor.setTransactionType(PersistenceUnitTransactionType.JTA);
             ClassLoader classLoader = this.getClass().getClassLoader();
             EntityManagerFactoryBuilderImpl builder = new EntityManagerFactoryBuilderImpl(deploymentDescriptor, settings,
                     classLoader);
-            entityManagerFactory = builder.build();
+            EntityManagerFactoryHolder.setEntityManagerFactory(builder.build());
         }
 
-        return entityManagerFactory;
     }
 
 }

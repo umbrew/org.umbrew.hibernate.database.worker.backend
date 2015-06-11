@@ -33,6 +33,10 @@ import org.hibernate.search.indexes.impl.DirectoryBasedIndexManager;
 import org.hibernate.search.indexes.serialization.spi.LuceneWorkSerializer;
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
 
+/**
+ * @author fharms
+ * @author moelholm
+ */
 public class DatabaseBackendQueueTask implements Runnable {
 
     private final String indexName;
@@ -65,8 +69,8 @@ public class DatabaseBackendQueueTask implements Runnable {
         LuceneDatabaseWork luceneDatabaseWork = new LuceneDatabaseWork();
         luceneDatabaseWork.setContent(data);
         luceneDatabaseWork.setIndexName(indexName);
-        entityManager.joinTransaction();;
         try {
+            entityManager.joinTransaction();
             entityManager.persist(luceneDatabaseWork);
         } catch (Exception e) { 
             e.printStackTrace();

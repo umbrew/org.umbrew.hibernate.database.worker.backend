@@ -20,10 +20,12 @@
 			<property name="hibernate.dialect" value="org.hibernate.dialect.H2Dialect" />
 
 			<!-- For indexing -->
-			<property name="hibernate.search.default.worker.backend" value="org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor"/>
+			<!-- property name="hibernate.search.default.worker.backend" value="org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor"/ -->
 			<property name="hibernate.search.default.worker.jdbc.datasource" value="java:jboss/datasources/ExampleDS"/>
 			<property name="hibernate.search.default.worker.jdbc.datasource.ddl.auto" value="create"/>
-			<property name="hibernate.search.default.directory_provider" value="org.hibernate.search.store.impl.RAMDirectoryProvider" />
+			<!--  property name="hibernate.search.default.directory_provider" value="org.hibernate.search.store.impl.RAMDirectoryProvider" / -->
+			<property name="hibernate.search.default.indexBase" value="/tmp/lucenedirs"/>
+			<property name="hibernate.search.default.directory_provider" value="filesystem"/>
 			<property name="hibernate.search.worker.execution" value="sync"/>
 		</properties>
 

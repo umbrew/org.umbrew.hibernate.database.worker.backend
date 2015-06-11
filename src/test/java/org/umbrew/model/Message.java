@@ -41,6 +41,11 @@ import org.hibernate.search.annotations.Store;
 
 import java.lang.Override;
 
+/**
+ * @author fharms
+ * @author moelholm
+ *
+ */
 @Entity
 @Table(name = "message")
 @Indexed
