@@ -22,6 +22,7 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend;
 
+import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -37,6 +38,7 @@ import org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver;
 import org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl;
 import org.hibernate.jpa.boot.internal.ParsedPersistenceXmlDescriptor;
 import org.hibernate.search.Environment;
+import org.hibernate.search.backend.BackendFactory;
 import org.hibernate.search.backend.IndexingMonitor;
 import org.hibernate.search.backend.LuceneWork;
 import org.hibernate.search.backend.spi.BackendQueueProcessor;
@@ -62,6 +64,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
     private DirectoryBasedIndexManager indexManager;
     private String indexName;
     private String autoDDL;
+    private BackendQueueProcessor delegatedBackend;
 
     @Override
     public void initialize(Properties props, WorkerBuildContext context, DirectoryBasedIndexManager indexManager) {
@@ -78,6 +81,8 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         }
 
         validate();
+
+        delegatedBackend = BackendFactory.createBackend("lucene", indexManager, context, props);
 
         initializeEntityManagerFactory();
 
@@ -103,17 +108,25 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         if (workList == null) {
             throw new IllegalArgumentException("workList should not be null");
         }
-        
-        DoWithEntityManager.execute(new DoWithEntityManagerTask() {
-            @Override
-            @SuppressWarnings("unchecked")
-            public Void withEntityManager(EntityManager entityManager) {
-                DatabaseBackendQueueTask databaseBackendQueueTask = new DatabaseBackendQueueTask(indexName, workList,
-                        indexManager, entityManager);
-                databaseBackendQueueTask.run();
-                return null;
+
+        if (!workList.isEmpty() && workList.get(0) instanceof DatabaseLuceneWorkWrapper) {
+            ArrayList<LuceneWork> originalWorkList = new ArrayList<LuceneWork>(workList.size());
+            for (LuceneWork databaseLueneWorkWrapper : workList) {
+                originalWorkList.add(((DatabaseLuceneWorkWrapper) databaseLueneWorkWrapper).getOriginal());
             }
-        });
+            delegatedBackend.applyWork(workList, monitor);
+        } else {
+            DoWithEntityManager.execute(new DoWithEntityManagerTask() {
+                @Override
+                @SuppressWarnings("unchecked")
+                public Void withEntityManager(EntityManager entityManager) {
+                    DatabaseBackendQueueTask databaseBackendQueueTask = new DatabaseBackendQueueTask(indexName, workList,
+                            indexManager, entityManager);
+                    databaseBackendQueueTask.run();
+                    return null;
+                }
+            });
+        }
 
     }
 

@@ -26,6 +26,7 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend.impl;
 
+import java.util.ArrayList;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -33,12 +34,14 @@ import javax.persistence.TypedQuery;
 
 import org.hibernate.Session;
 import org.hibernate.search.backend.LuceneWork;
+import org.hibernate.search.backend.OptimizeLuceneWork;
 import org.hibernate.search.engine.spi.SearchFactoryImplementor;
 import org.hibernate.search.indexes.impl.IndexManagerHolder;
 import org.hibernate.search.indexes.spi.IndexManager;
 import org.hibernate.search.util.impl.ContextHelper;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
+import org.umbrew.hibernate.search.database.worker.backend.DatabaseLuceneWorkWrapper;
 import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager;
 import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager.DoWithEntityManagerTask;
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
@@ -118,7 +121,11 @@ public abstract class AbstractDatabaseHibernateSearchController {
                         }
                         log.debug(String.format("Indexing [%s] [id=%s]", indexName, luceneWork.getId()));
                         List<LuceneWork> queue = indexManager.getSerializer().toLuceneWorks(luceneWork.getContent());
-                        indexManager.performOperations(queue, null);
+                        ArrayList<LuceneWork> wrapperQueue = new ArrayList<LuceneWork>(queue.size());
+                        for (LuceneWork work : queue) {
+                            wrapperQueue.add(new DatabaseLuceneWorkWrapper(work));
+                        }
+                        indexManager.performOperations(wrapperQueue, null);
                         entityManager.remove(luceneWork);
                     }
 
