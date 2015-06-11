@@ -103,9 +103,10 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         if (workList == null) {
             throw new IllegalArgumentException("workList should not be null");
         }
-
+        
         DoWithEntityManager.execute(new DoWithEntityManagerTask() {
             @Override
+            @SuppressWarnings("unchecked")
             public Void withEntityManager(EntityManager entityManager) {
                 DatabaseBackendQueueTask databaseBackendQueueTask = new DatabaseBackendQueueTask(indexName, workList,
                         indexManager, entityManager);

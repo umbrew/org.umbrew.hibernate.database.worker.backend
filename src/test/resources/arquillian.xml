@@ -10,7 +10,7 @@
 			<property name="jbossHome">${jboss.home}</property>
 			<property name="allowConnectingToRunningServer">false</property>
 			<property name="outputToConsole">true</property>
-			<property name="javaVmArguments">-Darquillian.debug=false -Djava.net.preferIPv4Stack=true -Xms128m -Xmx512m -agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=y</property>
+			<property name="javaVmArguments">-Darquillian.debug=false -Djava.net.preferIPv4Stack=true -Xms128m -Xmx512m -agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=n</property>
 		</configuration>
 	</container>
 </arquillian>

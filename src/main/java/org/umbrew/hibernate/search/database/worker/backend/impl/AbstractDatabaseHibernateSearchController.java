@@ -50,8 +50,7 @@ public abstract class AbstractDatabaseHibernateSearchController {
     private int luceneWorkBatchSize = 100;
 
     /**
-     * Return the current or give a new session This session is not used per se, but is the link to access the Search
-     * configuration.
+     * Return the current or give a new session This session is not used per se, but is the link to access the Search configuration.
      * <p>
      * A typical EJB 3.0 usecase would be to get the session from the container (injected) eg in JBoss EJB 3.0
      * <p>
@@ -100,6 +99,7 @@ public abstract class AbstractDatabaseHibernateSearchController {
 
             DoWithEntityManager.execute(new DoWithEntityManagerTask() {
                 @Override
+                @SuppressWarnings("unchecked")
                 public Void withEntityManager(EntityManager entityManager) {
                     log.debug("Work queue processing started");
 
@@ -126,22 +126,7 @@ public abstract class AbstractDatabaseHibernateSearchController {
                     return null;
                 }
             });
-            
-            DoWithEntityManager.execute(new DoWithEntityManagerTask() {
-                @Override
-                public Void withEntityManager(EntityManager entityManager) {
-                    String queryAsString = String.format("from %s order by id asc", LuceneDatabaseWork.class.getName());
-                    TypedQuery<LuceneDatabaseWork> query = entityManager.createQuery(queryAsString, LuceneDatabaseWork.class);
-                    
-                    
-                    System.out.println();
-                    System.out.println("------>>> "+query.getResultList());
-                    System.out.println();
-                    
-                    return null;
-                }
-            });
-            
+
         } catch (Exception e) {
             throw new RuntimeException(e);
         } finally {

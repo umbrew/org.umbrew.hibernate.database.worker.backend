@@ -44,8 +44,7 @@ public class DatabaseBackendQueueTask implements Runnable {
     private final EntityManager entityManager;
     private List<LuceneWork> workList;
 
-    public DatabaseBackendQueueTask(String indexName, List<LuceneWork> workList, DirectoryBasedIndexManager indexManager,
-            EntityManager entityManager) {
+    public DatabaseBackendQueueTask(String indexName, List<LuceneWork> workList, DirectoryBasedIndexManager indexManager, EntityManager entityManager) {
         this.indexName = indexName;
         this.workList = workList;
         this.indexManager = indexManager;
@@ -69,14 +68,7 @@ public class DatabaseBackendQueueTask implements Runnable {
         LuceneDatabaseWork luceneDatabaseWork = new LuceneDatabaseWork();
         luceneDatabaseWork.setContent(data);
         luceneDatabaseWork.setIndexName(indexName);
-        try {
-            entityManager.joinTransaction();
-            entityManager.persist(luceneDatabaseWork);
-        } catch (Exception e) { 
-            e.printStackTrace();
-        } finally {
-        }
-
+        entityManager.persist(luceneDatabaseWork);
     }
 
 }
