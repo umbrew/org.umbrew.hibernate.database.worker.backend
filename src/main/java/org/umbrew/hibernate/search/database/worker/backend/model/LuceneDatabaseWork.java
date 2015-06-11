@@ -31,8 +31,21 @@ import javax.persistence.GenerationType;
 import javax.persistence.Id;
 import javax.persistence.Lob;
 import javax.persistence.Table;
+
+import org.hibernate.search.backend.LuceneWork;
+
 import java.lang.Override;
 
+/**
+ * Entity for persisting {@link LuceneWork} in the database.
+ * <p>
+ * The {@link LuceneWork} is serialized as byte and stored in a byte array
+ * with an auto generated id and the index name.
+ * </p>
+ * @author fharms
+ * @author moelholm
+ *
+ */
 @Entity
 @Table(name = "lucene_work")
 public class LuceneDatabaseWork implements Serializable

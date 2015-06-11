@@ -22,7 +22,6 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend;
 
-import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
 import java.util.List;
@@ -109,12 +108,9 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
             throw new IllegalArgumentException("workList should not be null");
         }
 
-        if (!workList.isEmpty() && workList.get(0) instanceof DatabaseLuceneWorkWrapper) {
-            ArrayList<LuceneWork> originalWorkList = new ArrayList<LuceneWork>(workList.size());
-            for (LuceneWork databaseLueneWorkWrapper : workList) {
-                originalWorkList.add(((DatabaseLuceneWorkWrapper) databaseLueneWorkWrapper).getOriginal());
-            }
-            delegatedBackend.applyWork(workList, monitor);
+        if (workList.size() == 1 && workList.get(0) instanceof DatabaseLuceneWorkWrapper) {
+            DatabaseLuceneWorkWrapper wrapper = (DatabaseLuceneWorkWrapper) workList.get(0);
+            delegatedBackend.applyWork(wrapper.getLuceneWorkList(), monitor);
         } else {
             DoWithEntityManager.execute(new DoWithEntityManagerTask() {
                 @Override

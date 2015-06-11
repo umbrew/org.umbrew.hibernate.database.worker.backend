@@ -24,8 +24,6 @@ package org.umbrew.hibernate.search.database.worker.backend;
 
 import javax.naming.InitialContext;
 import javax.persistence.EntityManager;
-import javax.persistence.EntityTransaction;
-import javax.transaction.SystemException;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
 

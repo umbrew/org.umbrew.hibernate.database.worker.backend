@@ -26,7 +26,7 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend.impl;
 
-import java.util.ArrayList;
+import java.util.Collections;
 import java.util.List;
 
 import javax.persistence.EntityManager;
@@ -34,7 +34,6 @@ import javax.persistence.TypedQuery;
 
 import org.hibernate.Session;
 import org.hibernate.search.backend.LuceneWork;
-import org.hibernate.search.backend.OptimizeLuceneWork;
 import org.hibernate.search.engine.spi.SearchFactoryImplementor;
 import org.hibernate.search.indexes.impl.IndexManagerHolder;
 import org.hibernate.search.indexes.spi.IndexManager;
@@ -46,6 +45,11 @@ import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager;
 import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager.DoWithEntityManagerTask;
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
 
+/**
+ * @author fharms
+ * @author moelhom 
+ *
+ */
 public abstract class AbstractDatabaseHibernateSearchController {
 
     private static final Log log = LoggerFactory.make();
@@ -84,7 +88,11 @@ public abstract class AbstractDatabaseHibernateSearchController {
     }
 
     /**
-     * 
+     * Set the number of {@link LuceneDatabaseWork} is should process in one transaction
+     * <br>
+     * <p>
+     * Default is 100
+     * </p>
      */
     protected void setLuceneWorkBatchSize(int size) {
         this.luceneWorkBatchSize = size;
@@ -121,17 +129,14 @@ public abstract class AbstractDatabaseHibernateSearchController {
                         }
                         log.debug(String.format("Indexing [%s] [id=%s]", indexName, luceneWork.getId()));
                         List<LuceneWork> queue = indexManager.getSerializer().toLuceneWorks(luceneWork.getContent());
-                        ArrayList<LuceneWork> wrapperQueue = new ArrayList<LuceneWork>(queue.size());
-                        for (LuceneWork work : queue) {
-                            wrapperQueue.add(new DatabaseLuceneWorkWrapper(work));
-                        }
-                        indexManager.performOperations(wrapperQueue, null);
+                        indexManager.performOperations(Collections.singletonList(new DatabaseLuceneWorkWrapper(queue)), null);
                         entityManager.remove(luceneWork);
                     }
 
                     log.debug("Work queue processing finished");
                     return null;
                 }
+
             });
 
         } catch (Exception e) {
