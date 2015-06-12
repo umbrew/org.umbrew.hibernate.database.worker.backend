@@ -29,23 +29,22 @@ import org.hibernate.search.backend.impl.WorkVisitor;
 import org.umbrew.hibernate.search.database.worker.backend.impl.AbstractDatabaseHibernateSearchController;
 
 /**
- * Wrap a {@link LuceneWork} to distinguish between when it's processed by
- * {@link AbstractDatabaseHibernateSearchController} and {@link DatabaseBackendQueueProcessor}
+ * Wrap a {@link LuceneWork} to distinguish between when it's processed by {@link AbstractDatabaseHibernateSearchController} and {@link DatabaseBackendQueueProcessor}
  * 
- * @author fharms
- * @author moelholm
+ * @author Flemming Harms (flemming.harms@gmail.com)
+ * @author Nicky Moelholm (moelholm@gmail.com)
  */
 public class DatabaseLuceneWorkWrapper extends LuceneWork {
 
-    private static final long serialVersionUID = 0xCAFEBAE;
+    private static final long serialVersionUID = 0xCAFEBABE;
 
-    private List<LuceneWork> luceneWorkList;
-    
+    private final List<LuceneWork> luceneWorkList;
+
     public DatabaseLuceneWorkWrapper(List<LuceneWork> luceneWorkList) {
-        super(new Integer(1),"1",DatabaseLuceneWorkWrapper.class);
+        super(new Integer(1), "1", DatabaseLuceneWorkWrapper.class);
         this.luceneWorkList = luceneWorkList;
     }
-    
+
     @Override
     public <T> T getWorkDelegate(WorkVisitor<T> visitor) {
         return null;

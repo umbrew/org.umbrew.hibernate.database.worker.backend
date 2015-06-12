@@ -20,10 +20,6 @@
  * OUT OF OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN
  * THE SOFTWARE.
  */
-/**
- * @author fharms
- * @author moelholm
- */
 package org.umbrew.hibernate.search.database.worker.backend.impl;
 
 import java.util.Collections;
@@ -46,9 +42,8 @@ import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager.D
 import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseWork;
 
 /**
- * @author fharms
- * @author moelhom 
- *
+ * @author Flemming Harms (flemming.harms@gmail.com)
+ * @author Nicky Moelholm (moelholm@gmail.com)
  */
 public abstract class AbstractDatabaseHibernateSearchController {
 

@@ -50,11 +50,8 @@ import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseW
 import org.umbrew.model.Message;
 
 /**
- * 
- * @author fharms
- * @author moelholm
- *
- *
+ * @author Flemming Harms (flemming.harms@gmail.com)
+ * @author Nicky Moelholm (moelholm@gmail.com)
  */
 @RunWith(Arquillian.class)
 public class DatabaseBackendQueueProcessorIT {
@@ -67,12 +64,10 @@ public class DatabaseBackendQueueProcessorIT {
 
     @Deployment
     public static WebArchive createDeployment() {
-        return ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class)
-                .addClass(LuceneDatabaseWork.class).addPackage(DatabaseBackendQueueProcessor.class.getPackage())
-                .addClass(AbstractDatabaseHibernateSearchController.class)
+        return ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class).addClass(LuceneDatabaseWork.class)
+                .addPackage(DatabaseBackendQueueProcessor.class.getPackage()).addClass(AbstractDatabaseHibernateSearchController.class)
                 .addAsResource("META-INF/persistence.xml", "META-INF/persistence.xml")
-                .addAsWebInfResource("META-INF/jboss-deployment-structure.xml", "jboss-deployment-structure.xml")
-                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+                .addAsWebInfResource("META-INF/jboss-deployment-structure.xml", "jboss-deployment-structure.xml").addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
     }
 
     @Test
@@ -127,7 +122,6 @@ public class DatabaseBackendQueueProcessorIT {
     }
 
     private void performIndexing() throws Exception {
-        System.out.println("kermitter nu");
         userTransaction.begin();
 
         AbstractDatabaseHibernateSearchController abstractDatabaseHibernateSearchController = new AbstractDatabaseHibernateSearchController() {
@@ -144,7 +138,6 @@ public class DatabaseBackendQueueProcessorIT {
 
         abstractDatabaseHibernateSearchController.processWorkQueue();
         userTransaction.commit();
-        System.out.println("så er der sgu committed, ik?");
     }
 
     private Message createAndPersistNewMessage(String messageContent) {

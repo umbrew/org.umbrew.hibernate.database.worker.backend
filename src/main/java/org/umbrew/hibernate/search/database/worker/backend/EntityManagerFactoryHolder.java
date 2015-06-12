@@ -25,8 +25,8 @@ package org.umbrew.hibernate.search.database.worker.backend;
 import javax.persistence.EntityManagerFactory;
 
 /**
- * @author fharms
- * @author moelholm
+ * @author Flemming Harms (flemming.harms@gmail.com)
+ * @author Nicky Moelholm (moelholm@gmail.com)
  */
 public class EntityManagerFactoryHolder {
     

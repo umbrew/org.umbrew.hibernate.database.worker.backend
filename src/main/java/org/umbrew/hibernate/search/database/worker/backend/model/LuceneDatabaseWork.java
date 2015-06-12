@@ -34,98 +34,82 @@ import javax.persistence.Table;
 
 import org.hibernate.search.backend.LuceneWork;
 
-import java.lang.Override;
-
 /**
  * Entity for persisting {@link LuceneWork} in the database.
  * <p>
- * The {@link LuceneWork} is serialized as byte and stored in a byte array
- * with an auto generated id and the index name.
+ * The {@link LuceneWork} is serialized as byte and stored in a byte array with an auto generated id and the index name.
  * </p>
- * @author fharms
- * @author moelholm
+ * 
+ * @author Flemming Harms (flemming.harms@gmail.com)
+ * @author Nicky Moelholm (moelholm@gmail.com)
  *
  */
 @Entity
 @Table(name = "lucene_work")
-public class LuceneDatabaseWork implements Serializable
-{
+public class LuceneDatabaseWork implements Serializable {
 
-   private static final long serialVersionUID = 0xCAFEBABE;
+    private static final long serialVersionUID = 0xCAFEBABE;
 
-   @Id
-   @GeneratedValue(strategy = GenerationType.AUTO)
-   @Column(name = "id", updatable = false, nullable = false)
-   private Long id;
+    @Id
+    @GeneratedValue(strategy = GenerationType.AUTO)
+    @Column(name = "id", updatable = false, nullable = false)
+    private Long id;
 
-   @Lob
-   @Column(length = 2147483647, nullable = false)
-   private byte[] content;
+    @Lob
+    @Column(length = 2147483647, nullable = false)
+    private byte[] content;
 
-   @Column(length = 255, nullable = false)
-   private String indexName;
+    @Column(length = 255, nullable = false)
+    private String indexName;
 
-   public Long getId()
-   {
-      return this.id;
-   }
+    public Long getId() {
+        return this.id;
+    }
 
-   public void setId(final Long id)
-   {
-      this.id = id;
-   }
+    public void setId(final Long id) {
+        this.id = id;
+    }
 
-   public byte[] getContent()
-   {
-      return content;
-   }
+    public byte[] getContent() {
+        return content;
+    }
 
-   public void setContent(byte[] content)
-   {
-      this.content = content;
-   }
+    public void setContent(byte[] content) {
+        this.content = content;
+    }
 
-   public String getIndexName()
-   {
-      return indexName;
-   }
+    public String getIndexName() {
+        return indexName;
+    }
 
-   public void setIndexName(String indexName)
-   {
-      this.indexName = indexName;
-   }
+    public void setIndexName(String indexName) {
+        this.indexName = indexName;
+    }
 
-   
-   @Override
-   public boolean equals(Object obj)
-   {
-      if (this == obj)
-      {
-         return true;
-      }
-      if (!(obj instanceof LuceneDatabaseWork))
-      {
-         return false;
-      }
-      LuceneDatabaseWork other = (LuceneDatabaseWork) obj;
-      if (id != null)
-      {
-         if (!id.equals(other.id))
-         {
+    @Override
+    public boolean equals(Object obj) {
+        if (this == obj) {
+            return true;
+        }
+        if (!(obj instanceof LuceneDatabaseWork)) {
             return false;
-         }
-      }
-    
-      return true;
-   }
+        }
+        LuceneDatabaseWork other = (LuceneDatabaseWork) obj;
+        if (id != null) {
+            if (!id.equals(other.id)) {
+                return false;
+            }
+        }
 
-   @Override
-   public int hashCode()
-   {
-      final int prime = 31;
-      int result = 1;
-      result = prime * result + ((id == null) ? 0 : id.hashCode());
-      return result;
-   }
+        return true;
+    }
+
+    @Override
+    public int hashCode() {
+        final int prime = 31;
+        int result = 1;
+        result = prime * result + ((id == null) ? 0 : id.hashCode());
+        return result;
+    }
 
 }
