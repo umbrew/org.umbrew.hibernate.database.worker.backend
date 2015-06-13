@@ -31,9 +31,9 @@ import javax.persistence.TypedQuery;
 import org.hibernate.Session;
 import org.hibernate.search.backend.LuceneWork;
 import org.hibernate.search.engine.spi.SearchFactoryImplementor;
+import org.hibernate.search.impl.FullTextSessionImpl;
 import org.hibernate.search.indexes.impl.IndexManagerHolder;
 import org.hibernate.search.indexes.spi.IndexManager;
-import org.hibernate.search.util.impl.ContextHelper;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
 import org.umbrew.hibernate.search.database.worker.backend.DatabaseLuceneWorkWrapper;
@@ -94,12 +94,14 @@ public abstract class AbstractDatabaseHibernateSearchController {
     }
 
     /**
+     * Process the Lucene worker queue by retrieve all the works from the table
+     * in chunk of <code>luceneWorkBatchSize</code> and remove them when they
+     * are processed.
      */
-    @SuppressWarnings("deprecation")
     public void processWorkQueue() {
 
         final Session session = getSession();
-        final SearchFactoryImplementor factory = ContextHelper.getSearchFactory(session);
+        final SearchFactoryImplementor factory = (SearchFactoryImplementor) new FullTextSessionImpl(session).getSearchFactory();
         IndexManagerHolder indexManagerHolder = factory.getIndexManagerHolder();
         try {
 

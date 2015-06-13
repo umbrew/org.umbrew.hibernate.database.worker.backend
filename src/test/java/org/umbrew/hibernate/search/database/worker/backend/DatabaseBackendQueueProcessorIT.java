@@ -64,10 +64,11 @@ public class DatabaseBackendQueueProcessorIT {
 
     @Deployment
     public static WebArchive createDeployment() {
-        return ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class).addClass(LuceneDatabaseWork.class)
+        WebArchive warArchive = ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class).addClass(LuceneDatabaseWork.class)
                 .addPackage(DatabaseBackendQueueProcessor.class.getPackage()).addClass(AbstractDatabaseHibernateSearchController.class)
-                .addAsResource("META-INF/persistence.xml", "META-INF/persistence.xml")
-                .addAsWebInfResource("META-INF/jboss-deployment-structure.xml", "jboss-deployment-structure.xml").addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+                .addAsResource("persistence.xml", "META-INF/persistence.xml")
+                .addAsWebInfResource("jboss-deployment-structure.xml", "jboss-deployment-structure.xml").addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+        return warArchive;
     }
 
     @Test
@@ -117,7 +118,7 @@ public class DatabaseBackendQueueProcessorIT {
 
     private void assertNoLuceneDatabaseWorkItemsInDatabase() {
         String query = String.format("from %s", LuceneDatabaseWork.class.getName());
-        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(query).getResultList();
+        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(query,LuceneDatabaseWork.class).getResultList();
         assertEquals(0, databaseWorkItemsBefore.size());
     }
 

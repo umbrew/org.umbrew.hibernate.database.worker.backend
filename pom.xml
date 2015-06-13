@@ -40,6 +40,7 @@
 		<version.junit>4.12</version.junit>
 		<version.wildfly>8.2.0.Final</version.wildfly>
 		<version.hibernate-entitymanager>4.3.7.Final</version.hibernate-entitymanager>
+		<version.jboss-transaction-api>1.0.1.GA</version.jboss-transaction-api>
 		<jboss.home>${project.build.directory}/wildfly-${version.wildfly}</jboss.home>
 	</properties>
 	<dependencyManagement>
@@ -58,20 +59,13 @@
 				<type>pom</type>
 				<scope>import</scope>
 			</dependency>
-			<dependency>
-				<groupId>org.jboss.spec</groupId>
-				<artifactId>jboss-javaee-6.0</artifactId>
-				<version>3.0.2.Final</version>
-				<type>pom</type>
-				<scope>import</scope>
-			</dependency>
 		</dependencies>
 	</dependencyManagement>
 	<dependencies>
 		<dependency>
 			<groupId>org.jboss.javaee</groupId>
 			<artifactId>jboss-transaction-api</artifactId>
-			<version>1.0.1.GA</version>
+			<version>${version.jboss-transaction-api}</version>
 		</dependency>
 		<dependency>
 			<groupId>org.hibernate</groupId>
@@ -97,7 +91,6 @@
 		<dependency>
 			<groupId>javax.enterprise</groupId>
 			<artifactId>cdi-api</artifactId>
-			<version>1.1</version>
 			<scope>provided</scope>
 		</dependency>
 		<dependency>
@@ -116,30 +109,11 @@
 				</includes>
 				<filtering>false</filtering>
 			</resource>
-			<resource>
-				<directory>src/main/resources/</directory>
-				<includes>
-					<include>**/*.xml</include>
-				</includes>
-				<filtering>true</filtering>
-			</resource>
 		</resources>
 		<testResources>
 			<testResource>
 				<directory>src/test/resources</directory>
 				<filtering>true</filtering>
-				<includes>
-					<include>**/arquillian.xml</include>
-					<include>**/arquillian.launch</include>
-				</includes>
-			</testResource>
-			<testResource>
-				<directory>src/test/resources</directory>
-				<filtering>true</filtering>
-				<excludes>
-					<exclude>**/arquillian.xml</exclude>
-					<exclude>**/arquillian.launch</exclude>
-				</excludes>
 			</testResource>
 		</testResources>
 		<plugins>
@@ -246,6 +220,13 @@
 	</profiles>
 	<organization>
 		<name>Umbrew</name>
+		<url>https://github.com/umbrew</url>
 	</organization>
 	<inceptionYear>2015</inceptionYear>
+	<url>https://github.com/umbrew/org.umbrew.hibernate.database.worker.backend</url>
+	<scm>
+		<url>https://github.com/umbrew/org.umbrew.hibernate.database.worker.backend.git</url>
+		<connection>https</connection>
+		<developerConnection>Flemming Harms, Nicky Moelholm</developerConnection>
+	</scm>
 </project>

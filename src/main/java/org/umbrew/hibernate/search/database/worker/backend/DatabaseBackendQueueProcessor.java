@@ -29,7 +29,6 @@ import java.util.List;
 import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.Lock;
-import java.util.concurrent.locks.ReentrantLock;
 
 import javax.persistence.EntityManager;
 import javax.persistence.spi.PersistenceUnitTransactionType;
@@ -131,8 +130,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     @Override
     public Lock getExclusiveWriteLock() {
-        log.warnSuspiciousBackendDirectoryCombination(indexName);
-        return new ReentrantLock(); // keep the invoker happy, still it's useless
+        return delegatedBackend.getExclusiveWriteLock();
     }
 
     @Override
