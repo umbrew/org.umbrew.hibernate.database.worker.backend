@@ -30,6 +30,7 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 
+import javax.naming.InitialContext;
 import javax.persistence.EntityManager;
 import javax.persistence.spi.PersistenceUnitTransactionType;
 
@@ -59,8 +60,9 @@ import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseW
 public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     // Configuration properties
+    public static final String JTA_TRANSACTION_MANAGER_JNDI_NAME = Environment.WORKER_PREFIX + "jta.transactionmanager";
     public static final String JTA_PLATFORM = Environment.WORKER_PREFIX + "jta.platform";
-    public static final String DATA_SOURCE = Environment.WORKER_PREFIX + "jdbc.datasource";
+    public static final String DATA_SOURCE_JNDI_NAME = Environment.WORKER_PREFIX + "jdbc.datasource";
     public static final String AUTO_DDL = Environment.WORKER_PREFIX + "jdbc.datasource.ddl.auto";
     public static final String SHOW_SQL = Environment.WORKER_PREFIX + "jdbc.sql.show";
     public static final String FORMAT_SQL = Environment.WORKER_PREFIX + "jdbc.sql.format";
@@ -72,11 +74,12 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
     private String indexName;
 
     // Configuration values
+    private String jtaPlatform;
+    private String jtaTransactionManagerJndiName;
     private String dataSourceJndiName;
     private String autoDDL;
     private String showSql;
     private String formatSql;
-    private String jtaPlatform;
 
     @Override
     public void initialize(Properties props, WorkerBuildContext context, DirectoryBasedIndexManager indexManager) {
@@ -85,17 +88,20 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         this.indexManager = indexManager;
         this.indexName = indexManager.getIndexName();
         this.delegatedBackend = BackendFactory.createBackend("lucene", indexManager, context, props);
-        this.dataSourceJndiName = props.getProperty(DATA_SOURCE);
+        this.dataSourceJndiName = props.getProperty(DATA_SOURCE_JNDI_NAME);
         this.autoDDL = props.getProperty(AUTO_DDL, "create");
         this.showSql = props.getProperty(SHOW_SQL, "false");
         this.formatSql = props.getProperty(FORMAT_SQL, "false");
+        this.jtaTransactionManagerJndiName = props.getProperty(JTA_TRANSACTION_MANAGER_JNDI_NAME, "java:/TransactionManager");
         this.jtaPlatform = props.getProperty(JTA_PLATFORM, "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform");
 
         logConfiguration();
 
         validate();
 
-        initializeEntityManagerFactory();
+        initializeEntityManagerFactoryHolder();
+
+        intializeTransactionManagerHolder();
 
         log.debug("Initialized");
     }
@@ -141,8 +147,9 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
     private void logConfiguration() {
         if (log.isDebugEnabled()) {
             log.debug(">> Configuration");
+            logProperty(JTA_TRANSACTION_MANAGER_JNDI_NAME, jtaTransactionManagerJndiName);
             logProperty(JTA_PLATFORM, jtaPlatform);
-            logProperty(DATA_SOURCE, dataSourceJndiName);
+            logProperty(DATA_SOURCE_JNDI_NAME, dataSourceJndiName);
             logProperty(AUTO_DDL, autoDDL);
             logProperty(SHOW_SQL, showSql);
             logProperty(FORMAT_SQL, formatSql);
@@ -156,7 +163,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     private void validate() {
         if (this.dataSourceJndiName == null) {
-            throw log.configuratioPropertyCantBeEmpty(DATA_SOURCE);
+            throw log.configuratioPropertyCantBeEmpty(DATA_SOURCE_JNDI_NAME);
         }
     }
 
@@ -199,7 +206,17 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         });
     }
 
-    private synchronized void initializeEntityManagerFactory() {
+    private synchronized void intializeTransactionManagerHolder() {
+        if (TransactionManagerHolder.getTransactionManager() == null) {
+            try {
+                TransactionManagerHolder.setTransactionManager(InitialContext.doLookup(jtaTransactionManagerJndiName));
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
+    }
+
+    private synchronized void initializeEntityManagerFactoryHolder() {
 
         if (EntityManagerFactoryHolder.getEntityManagerFactory() == null) {
             Map<String, String> settings = new HashMap<String, String>();
@@ -214,8 +231,8 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
             ParsedPersistenceXmlDescriptor deploymentDescriptor = new ParsedPersistenceXmlDescriptor(null);
             deploymentDescriptor.addClasses(LuceneDatabaseWork.class.getName());
             deploymentDescriptor.setTransactionType(PersistenceUnitTransactionType.JTA);
-            ClassLoader classLoader = this.getClass().getClassLoader();
-            EntityManagerFactoryBuilderImpl builder = new EntityManagerFactoryBuilderImpl(deploymentDescriptor, settings, classLoader);
+            EntityManagerFactoryBuilderImpl builder = new EntityManagerFactoryBuilderImpl(deploymentDescriptor, settings);
+            builder.buildServiceRegistry();
             EntityManagerFactoryHolder.setEntityManagerFactory(builder.build());
         }
 

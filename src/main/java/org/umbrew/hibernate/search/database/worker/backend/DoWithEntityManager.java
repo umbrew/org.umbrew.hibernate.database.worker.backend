@@ -22,7 +22,6 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend;
 
-import javax.naming.InitialContext;
 import javax.persistence.EntityManager;
 import javax.transaction.Transaction;
 import javax.transaction.TransactionManager;
@@ -44,14 +43,13 @@ public class DoWithEntityManager {
 
         EntityManager entityManager = null;
         try {
-            transactionManager = (TransactionManager) InitialContext.doLookup("java:/TransactionManager");
+            transactionManager = TransactionManagerHolder.getTransactionManager();
             activeJtaTransaction = transactionManager.getTransaction();
 
             if (activeJtaTransaction != null) {
                 log.debug("Suspending existing JTA transaction");
                 transactionManager.suspend();
             }
-
             transactionManager.begin();
             entityManager = EntityManagerFactoryHolder.getEntityManagerFactory().createEntityManager();
             entityManager.joinTransaction();

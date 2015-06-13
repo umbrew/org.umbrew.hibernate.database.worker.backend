@@ -31,6 +31,7 @@ import java.util.List;
 import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
+import javax.persistence.Query;
 import javax.transaction.UserTransaction;
 
 import org.hibernate.Session;
@@ -43,6 +44,7 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
+import org.junit.Before;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.umbrew.hibernate.search.database.worker.backend.impl.AbstractDatabaseHibernateSearchController;
@@ -64,11 +66,16 @@ public class DatabaseBackendQueueProcessorIT {
 
     @Deployment
     public static WebArchive createDeployment() {
-        WebArchive warArchive = ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class).addClass(LuceneDatabaseWork.class)
+        return ShrinkWrap.create(WebArchive.class).addClass(DatabaseBackendQueueProcessor.class).addClass(Message.class).addClass(LuceneDatabaseWork.class)
                 .addPackage(DatabaseBackendQueueProcessor.class.getPackage()).addClass(AbstractDatabaseHibernateSearchController.class)
-                .addAsResource("persistence.xml", "META-INF/persistence.xml")
-                .addAsWebInfResource("jboss-deployment-structure.xml", "jboss-deployment-structure.xml").addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
-        return warArchive;
+                .addAsResource("persistence.xml", "META-INF/persistence.xml").addAsWebInfResource("jboss-deployment-structure.xml", "jboss-deployment-structure.xml")
+                .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+    }
+
+    @Before
+    public void setUp() throws Exception {
+        deleteAllMessageEntities();
+        indexRightNow();
     }
 
     @Test
@@ -79,7 +86,7 @@ public class DatabaseBackendQueueProcessorIT {
         assertEquals(1, countLuceneDatabaseWorkEntities());
 
         // When
-        performIndexing();
+        indexRightNow();
         List<Message> allIndexedMessages = findIndexedMessages();
 
         // Then
@@ -116,13 +123,23 @@ public class DatabaseBackendQueueProcessorIT {
         userTransaction.commit();
     }
 
+    private void deleteAllMessageEntities() throws Exception {
+        userTransaction.begin();
+        String sql = String.format("delete from %s", Message.class.getName());
+        Query query = entityManager.createQuery(sql);
+        query.executeUpdate();
+        userTransaction.commit();
+        assertNoLuceneDatabaseWorkItemsInDatabase();
+    }
+
     private void assertNoLuceneDatabaseWorkItemsInDatabase() {
         String query = String.format("from %s", LuceneDatabaseWork.class.getName());
-        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(query,LuceneDatabaseWork.class).getResultList();
+        @SuppressWarnings("unchecked")
+        List<LuceneDatabaseWork> databaseWorkItemsBefore = entityManager.createQuery(query).getResultList();
         assertEquals(0, databaseWorkItemsBefore.size());
     }
 
-    private void performIndexing() throws Exception {
+    private void indexRightNow() throws Exception {
         userTransaction.begin();
 
         AbstractDatabaseHibernateSearchController abstractDatabaseHibernateSearchController = new AbstractDatabaseHibernateSearchController() {
