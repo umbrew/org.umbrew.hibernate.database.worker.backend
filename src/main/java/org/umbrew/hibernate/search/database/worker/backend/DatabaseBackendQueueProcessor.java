@@ -89,7 +89,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         this.indexName = indexManager.getIndexName();
         this.delegatedBackend = BackendFactory.createBackend("lucene", indexManager, context, props);
         this.dataSourceJndiName = props.getProperty(DATA_SOURCE_JNDI_NAME);
-        this.autoDDL = props.getProperty(AUTO_DDL, "create");
+        this.autoDDL = props.getProperty(AUTO_DDL, "update");
         this.showSql = props.getProperty(SHOW_SQL, "false");
         this.formatSql = props.getProperty(FORMAT_SQL, "false");
         this.jtaTransactionManagerJndiName = props.getProperty(JTA_TRANSACTION_MANAGER_JNDI_NAME, "java:/TransactionManager");

@@ -69,7 +69,7 @@ The following configuration is supported in the persistence.xml
 |hibernate.search.default.worker.jta.transactionmanager   | Set the prefer transaction manager. Default ":java:/TransactionManager"  |
 |hibernate.search.default.worker.jta.platform   | Set the supported JTA platform. Default "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform"   |
 |hibernate.search.default.worker.jdbc.datasource   | Set the datasource the worker should connect to |
-|hibernate.search.default.worker.jdbc.datasource.ddl.auto   | Set the schema creation mode. Default "create" (Follow hibernate semantic) |
+|hibernate.search.default.worker.jdbc.datasource.ddl.auto   | Set the schema creation mode. Default "update" (Follow hibernate semantic) |
 |hibernate.search.default.worker.jdbc.sql.show   | Show the SQL is executed. Default "false"  |
 |hibernate.search.default.worker.jdbc.sql.format   | Pretty format the SQL log. Default "false"  |
 
