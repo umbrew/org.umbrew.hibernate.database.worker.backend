@@ -3,7 +3,7 @@
 This is an alternative back end processor to the current supported "Lucene","JMS" and "JGROUPS" that will store the LuceneWork'ers in a database for later processing by a scheduled job. 
 The advantage with the database worker is all workers are stored in a database, and in case of a node is crashing nothing is lost, second the database worker dosen't need to know who is the master or slave.
 
-The only requirement is that you have to define a job that only run one place in the cluster, but this can be done with Quartz or a [Wildfly HA singleton](https://github.com/wildfly/quickstart/tree/master/cluster-ha-singleton) and possible other ways.
+The only requirement is that you have to define a job that only run in one if the nodes in cluster environment, but this can be done with [Quartz](http://quartz-scheduler.org/) or a [Wildfly HA singleton](https://github.com/wildfly/quickstart/tree/master/cluster-ha-singleton) and possible other ways.
 
 The backend will both work in single node and clustered environment
 
@@ -59,6 +59,20 @@ public class DatabaseHibernateSearchController extends AbstractDatabaseHibernate
 
 }
 ``` 
+
+## Configuration.
+The following configuration is supported in the persistence.xml
+
+| Key  | Value   |
+|---|---|
+|hibernate.search.default.worker.backend   |org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor|
+|hibernate.search.default.worker.jta.transactionmanager   | Set the prefer transaction manager. Default ":java:/TransactionManager"  |
+|hibernate.search.default.worker.jta.platform   | Set the supported JTA platform. Default "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform"   |
+|hibernate.search.default.worker.jdbc.datasource   | Set the datasource the worker should connect to |
+|hibernate.search.default.worker.jdbc.datasource.ddl.auto   | Set the schema creation mode. Default "create" (Follow hibernate semantic) |
+|hibernate.search.default.worker.jdbc.sql.show   | Show the SQL is executed. Default "false"  |
+|hibernate.search.default.worker.jdbc.sql.format   | Pretty format the SQL log. Default "false"  |
+
 
 ## How do I build it.
 
