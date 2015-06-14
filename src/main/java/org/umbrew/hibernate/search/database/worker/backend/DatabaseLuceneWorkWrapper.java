@@ -29,7 +29,12 @@ import org.hibernate.search.backend.impl.WorkVisitor;
 import org.umbrew.hibernate.search.database.worker.backend.impl.AbstractDatabaseHibernateSearchController;
 
 /**
- * Wrap a {@link LuceneWork} to distinguish between when it's processed by {@link AbstractDatabaseHibernateSearchController} and {@link DatabaseBackendQueueProcessor}
+ * Wrap a {@link LuceneWork} to distinguish between when it's processed by 
+ * {@link AbstractDatabaseHibernateSearchController} and {@link DatabaseBackendQueueProcessor}
+ * <P>
+ * This is because the method applyWork is called twice - once by the Hibernate Search infrastructure itself
+ * and once indirectly by the persistLuceneWorkListToDatabase. 
+ * </p>
  * 
  * @author Flemming Harms (flemming.harms@gmail.com)
  * @author Nicky Moelholm (moelholm@gmail.com)
