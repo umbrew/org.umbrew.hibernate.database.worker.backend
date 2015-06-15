@@ -37,7 +37,7 @@ public class DoWithEntityManager {
 
     private static final Log log = LoggerFactory.make();
 
-    public static <T> T execute(DoWithEntityManager.DoWithEntityManagerTask task) {
+    public static <T> T execute(DoWithEntityManagerTask task) {
         TransactionManager transactionManager = null;
         Transaction activeJtaTransaction = null;
 
@@ -53,6 +53,7 @@ public class DoWithEntityManager {
             transactionManager.begin();
             entityManager = EntityManagerFactoryHolder.getEntityManagerFactory().createEntityManager();
             entityManager.joinTransaction();
+            
             T result = task.withEntityManager(entityManager);
 
             transactionManager.commit();
