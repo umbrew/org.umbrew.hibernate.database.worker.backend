@@ -22,6 +22,7 @@
  */
 package org.umbrew.hibernate.search.database.worker.backend;
 
+import java.lang.reflect.Method;
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.HashMap;
@@ -30,13 +31,16 @@ import java.util.Map;
 import java.util.Properties;
 import java.util.concurrent.locks.Lock;
 
-import javax.naming.InitialContext;
 import javax.persistence.EntityManager;
 import javax.persistence.spi.PersistenceUnitTransactionType;
+import javax.transaction.TransactionManager;
 
 import org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver;
+import org.hibernate.engine.transaction.jta.platform.internal.AbstractJtaPlatform;
+import org.hibernate.engine.transaction.jta.platform.internal.JBossAppServerJtaPlatform;
 import org.hibernate.jpa.boot.internal.EntityManagerFactoryBuilderImpl;
 import org.hibernate.jpa.boot.internal.ParsedPersistenceXmlDescriptor;
+import org.hibernate.jpa.internal.EntityManagerFactoryImpl;
 import org.hibernate.search.Environment;
 import org.hibernate.search.backend.BackendFactory;
 import org.hibernate.search.backend.IndexingMonitor;
@@ -75,7 +79,6 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     // Configuration values
     private String jtaPlatform;
-    private String jtaTransactionManagerJndiName;
     private String dataSourceJndiName;
     private String autoDDL;
     private String showSql;
@@ -92,8 +95,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         this.autoDDL = props.getProperty(AUTO_DDL, "update");
         this.showSql = props.getProperty(SHOW_SQL, "false");
         this.formatSql = props.getProperty(FORMAT_SQL, "false");
-        this.jtaTransactionManagerJndiName = props.getProperty(JTA_TRANSACTION_MANAGER_JNDI_NAME, "java:/TransactionManager");
-        this.jtaPlatform = props.getProperty(JTA_PLATFORM, "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform");
+        this.jtaPlatform = props.getProperty(JTA_PLATFORM, JBossAppServerJtaPlatform.class.getName());
 
         logConfiguration();
 
@@ -108,7 +110,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     @Override
     public void close() {
-        EntityManagerFactoryHolder.getEntityManagerFactory().close();
+        tearDownEntityManagerFactoryHolder();
         log.debug("Closed");
     }
 
@@ -147,7 +149,6 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
     private void logConfiguration() {
         if (log.isDebugEnabled()) {
             log.debug(">> Configuration");
-            logProperty(JTA_TRANSACTION_MANAGER_JNDI_NAME, jtaTransactionManagerJndiName);
             logProperty(JTA_PLATFORM, jtaPlatform);
             logProperty(DATA_SOURCE_JNDI_NAME, dataSourceJndiName);
             logProperty(AUTO_DDL, autoDDL);
@@ -207,12 +208,32 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
     }
 
     private synchronized void intializeTransactionManagerHolder() {
+        // TODO Bootstrap the programmatically created JPA EntityManagerFactory so that it has the expected
+        // Hibernate services in it's ServiceRegistry
+        
         if (TransactionManagerHolder.getTransactionManager() == null) {
             try {
-                TransactionManagerHolder.setTransactionManager(InitialContext.doLookup(jtaTransactionManagerJndiName));
+                // Prepare access to the AbstractJtaPlatform's locateTransactionManager() method
+                Class<?> jtaPlatformClass = Class.forName(jtaPlatform);
+                Method locateTransactionManagerMethod = jtaPlatformClass.getDeclaredMethod("locateTransactionManager");
+                locateTransactionManagerMethod.setAccessible(true);
+
+                // Instantiate the current AbstractJtaPlatform...
+                AbstractJtaPlatform jtaPlatformInstance = (AbstractJtaPlatform) jtaPlatformClass.newInstance();
+                jtaPlatformInstance.injectServices(((EntityManagerFactoryImpl) EntityManagerFactoryHolder.getEntityManagerFactory()).getSessionFactory().getServiceRegistry());
+
+                // ...and use that to obtain the JTA TransactionManager
+                TransactionManager jtaTransactionManager = (TransactionManager) locateTransactionManagerMethod.invoke(jtaPlatformInstance);
+                TransactionManagerHolder.setTransactionManager(jtaTransactionManager);
             } catch (Exception e) {
                 throw new RuntimeException(e);
             }
+        }
+    }
+
+    private synchronized void tearDownEntityManagerFactoryHolder() {
+        if (EntityManagerFactoryHolder.getEntityManagerFactory() != null) {
+            EntityManagerFactoryHolder.getEntityManagerFactory().close();
         }
     }
 

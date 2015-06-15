@@ -74,21 +74,20 @@ Just remember one thing: your application must have some "job-like" functionalit
 Failure to have this will result in two problems. Firstly, nothing will ever be indexed. Secondly, at some point in time your database will hit excessive disk usage problems - caused by an ever-growing amount of rows in table `lucene_work`.
 
 
-## Configuration.
+## Configuration
 The following configuration is supported in the persistence.xml
 
 | Key  | Value   |
 |---|---|
 |hibernate.search.default.worker.backend   |org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor|
-|hibernate.search.default.worker.jta.transactionmanager   | Set the prefer transaction manager. Default ":java:/TransactionManager"  |
-|hibernate.search.default.worker.jta.platform   | Set the supported JTA platform. Default "org.hibernate.service.jta.platform.internal.JBossAppServerJtaPlatform"   |
+|hibernate.search.default.worker.jta.platform   | Set the supported JTA platform. Default "org.hibernate.engine.transaction.jta.platform.internal.JBossAppServerJtaPlatform"   |
 |hibernate.search.default.worker.jdbc.datasource   | Set the datasource the worker should connect to |
 |hibernate.search.default.worker.jdbc.datasource.ddl.auto   | Set the schema creation mode. Default "update" (Follow hibernate semantic) |
 |hibernate.search.default.worker.jdbc.sql.show   | Show the SQL is executed. Default "false"  |
 |hibernate.search.default.worker.jdbc.sql.format   | Pretty format the SQL log. Default "false"  |
 
 
-## How do I build it.
+## How do I build it?
 
 Easy again, just type the following command
 
