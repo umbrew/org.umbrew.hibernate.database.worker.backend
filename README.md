@@ -1,29 +1,31 @@
-# Hibernate Search Database back end worker
+# Hibernate Search database back end processor
 
-This is an alternative back end processor to the current supported "Lucene","JMS" and "JGROUPS" that will store the LuceneWork'ers in a database for later processing by a scheduled job. 
-The advantage with the database worker is all workers are stored in a database, and in case of a node is crashing nothing is lost, second the database worker dosen't need to know who is the master or slave.
+This is an alternative back end processor to those already provided with Hibernate Search (`LUCENE`, `JMS` and `JGROUPS`). It stores its scheduled index updates (LuceneWork's) in a database for later processing by a scheduled job. It is designed to work single node environments as well as clustered environments. 
 
-The only requirement is that you have to define a job that only run in one if the nodes in cluster environment, but this can be done with [Quartz](http://quartz-scheduler.org/) or a [Wildfly HA singleton](https://github.com/wildfly/quickstart/tree/master/cluster-ha-singleton) and possible other ways.
+Primary advantages:
+- Once persisted to the database, scheduled index updates are not lost in case of node crashes  
+- No need for specifying master/slave roles in a cluster (this is contrary to `JMS` processor)
 
-The backend will both work in single node and clustered environment
+To get these advantages, however, you yourself have to define a job that only run in one of the nodes in cluster environment. This can, for example, be done with [Quartz](http://quartz-scheduler.org/) or a [Wildfly HA singleton](https://github.com/wildfly/quickstart/tree/master/cluster-ha-singleton).
 
-> Only tested with Wildfly 8.2 and Hibernate Search 4.5.1
+Note that this processor runs in a post-successful transaction commit (indirectly orchestrated by Hibernate via a JTA `Synchronization` listener). As such there is a narrow window of vulnerability, in which a crash can result in lost index updates. However, do note that the same applies for all of the Hibernate Search built-in processors as well. 
 
-## How do I install it.
+_This processor has only been tested with Wildfly 8.2 and Hibernate Search 4.5.1. However, configuration options will most likely make it work without issues in other application server configurations as well._
+
+## How do I install it?
 
 That's easy 
 
-* Download the jar file from [releases](https://github.com/umbrew/org.umbrew.hibernate.database.worker.backend/releases) or checkout
-the code and build it your self.
-* Place the jar file in the EAR or WAR archive.
-* Update the persistence.xml with following configuration
+* Download the jar file from [releases](https://github.com/umbrew/org.umbrew.hibernate.database.worker.backend/releases) or checkout the code and build it yourself.
+* Place the jar file in your EAR- or WAR archive.
+* Update your persistence.xml with following configuration
 
 > &#60;property name="hibernate.search.default.worker.backend" value="org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor"/&#62;
 
 ### Create a Job for processing Lucene workers
-You will have to do a little work for your self, and that is to create a job or HA singleton that is only running on a single node each time. 
+You will have to do a little work for yourself: create a job or HA singleton that is only running on a single node at a each time. 
 
-The job has to extend this class
+The job has to extend this class:
 
 >AbstractDatabaseHibernateSearchController
 
@@ -31,7 +33,7 @@ and let it call the method
 
 >processWorkQueue()
 
-It could look like this
+A common paradigm to initiate the controller could look like this:
 
 ```java
 @Singleton
@@ -40,25 +42,37 @@ It could look like this
 @ConcurrencyManagement(BEAN)
 public class DatabaseHibernateSearchController extends AbstractDatabaseHibernateSearchController {
 
-    @PersistenceContext(name = "my-databasesource") //point to the database where the LuceneWork is stored
-    private Session session;
-
-    @Override
-    protected void cleanSessionIfNeeded(Session arg0) {
-    }
+    @PersistenceContext(name = "myPersistenceUnit") //point to the persistence context that is configured to use Hibernate Search
+    private EntityManager entityManager;
 
     @Override
     protected Session getSession() {
-        return session;
+    	// Unwrap the Hibernate session object
+        return (Session) entityManager.getDelegate(); 
     }
 
     @PostConstruct
     public void start() {
-        // Schedule your Quartz job here and let it call the processWorkQueue() method
+    
+        // Schedule your cluster-aware Quartz job here
+        // (ensure that the jub is only run by one cluster node at any given time)
+        
+        // The job that you schedule should call the processWorkQueue() method in the super class  
+        // (this singleton is extending AbstractDatabaseHibernateSearchController)
+        // (alternatively you could let the job itself extend the AbstractDatabaseHibernateSearchController)
+        
     }
 
 }
 ``` 
+
+The above example illustrates how to use an EJB singleton component to schedule a quartzjob - which then again, periodically invokes the `processWorkQueue()` method.
+Alternatively, if your EJB container already supports clusterwide Timer beans, then you could also just use that. 
+Or something completely different.
+The choice is all yours.
+Just remember one thing: your application must have some "job-like" functionality that periodically calls the  `processWorkQueue()`  method.
+Failure to have this will result in two problems. Firstly, nothing will ever be indexed. Secondly, at some point in time your database will hit excessive disk usage problems - caused by an ever-growing amount of rows in table `lucene_work`.
+
 
 ## Configuration.
 The following configuration is supported in the persistence.xml
