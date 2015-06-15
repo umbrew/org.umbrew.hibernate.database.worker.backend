@@ -36,8 +36,8 @@ and let it call the method
 A common paradigm to initiate the controller could look like this:
 
 ```java
-@Singleton
 @Startup
+@Singleton
 @LocalBean
 @ConcurrencyManagement(BEAN)
 public class DatabaseHibernateSearchController extends AbstractDatabaseHibernateSearchController {
@@ -55,7 +55,7 @@ public class DatabaseHibernateSearchController extends AbstractDatabaseHibernate
     public void start() {
     
         // Schedule your cluster-aware Quartz job here
-        // (ensure that the jub is only run by one cluster node at any given time)
+        // (ensure that the job is only run by one cluster node at any given time)
         
         // The job that you schedule should call the processWorkQueue() method in the super class  
         // (this singleton is extending AbstractDatabaseHibernateSearchController)
@@ -67,9 +67,11 @@ public class DatabaseHibernateSearchController extends AbstractDatabaseHibernate
 ``` 
 
 The above example illustrates how to use an EJB singleton component to schedule a quartzjob - which then again, periodically invokes the `processWorkQueue()` method.
+
 Alternatively, if your EJB container already supports clusterwide Timer beans, then you could also just use that. 
 Or something completely different.
 The choice is all yours.
+
 Just remember one thing: your application must have some "job-like" functionality that periodically calls the  `processWorkQueue()`  method.
 Failure to have this will result in two problems. Firstly, nothing will ever be indexed. Secondly, at some point in time your database will hit excessive disk usage problems - caused by an ever-growing amount of rows in table `lucene_work`.
 
