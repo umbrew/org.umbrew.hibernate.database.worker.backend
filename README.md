@@ -10,7 +10,7 @@ To get these advantages, however, you yourself have to define a job that only ru
 
 Note that this processor runs in a post-successful transaction commit (indirectly orchestrated by Hibernate via a JTA `Synchronization` listener). As such there is a narrow window of vulnerability, in which a crash can result in lost index updates. However, do note that the same applies for all of the Hibernate Search built-in processors as well. 
 
-_This processor has only been tested with Wildfly 8.2 and Hibernate Search 4.5.1. However, configuration options will most likely make it work without issues in other application server configurations as well._
+_This processor has only been tested with WildFly 8.2 and Hibernate Search 4.5.1. However, configuration options will most likely make it work without issues in other application server configurations as well._
 
 ## How do I install it?
 
