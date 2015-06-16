@@ -32,6 +32,7 @@ import javax.inject.Inject;
 import javax.persistence.EntityManager;
 import javax.persistence.PersistenceContext;
 import javax.persistence.Query;
+import javax.persistence.TypedQuery;
 import javax.transaction.UserTransaction;
 
 import org.hibernate.Session;
@@ -72,17 +73,11 @@ public class DatabaseBackendQueueProcessorIT {
                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
     }
 
-    @Before
-    public void setUp() throws Exception {
-        deleteAllMessageEntities();
-        indexRightNow();
-    }
-
     @Test
-    public void testDatabaseWorkerBackend() throws Exception {
+    public void testIndexing_whenNewIndexedEntityIsSaved_thenEntityIsIndexed() throws Exception {
 
         // Given
-        insertOneMessageEntity();
+        insertMessageEntity("hello world");
         assertEquals(1, countLuceneDatabaseWorkEntities());
 
         // When
@@ -92,7 +87,31 @@ public class DatabaseBackendQueueProcessorIT {
         // Then
         assertEquals(1, allIndexedMessages.size());
         assertEquals("hello world", allIndexedMessages.iterator().next().getContent());
+    }
+
+    @Test
+    public void testIndexing_whenNewIndexedEntityIsSavedAndThenUpdated_thenAllEntityChangesAreIndexed() throws Exception {
+
+        // Given
+        insertMessageEntity("hello world");
+        updateMessageEntity("updated hello world");
+        assertEquals(2, countLuceneDatabaseWorkEntities());
+
+        // When
+        indexRightNow();
+        List<Message> allIndexedMessages = findIndexedMessages();
+
+        // Then
+        assertEquals(1, allIndexedMessages.size());
+        assertEquals("updated hello world", allIndexedMessages.iterator().next().getContent());
         assertEquals(0, countLuceneDatabaseWorkEntities());
+    }
+
+    @Before
+    public void tearDown() throws Exception {
+        deleteAllMessageEntities();
+        indexRightNow();
+        assertNoLuceneDatabaseWorkItemsInDatabase();
     }
 
     @SuppressWarnings("unchecked")
@@ -111,24 +130,37 @@ public class DatabaseBackendQueueProcessorIT {
         return databaseWorkItems.size();
     }
 
-    private void insertOneMessageEntity() throws Exception {
-        userTransaction.begin();
-        assertNoLuceneDatabaseWorkItemsInDatabase();
+    private void insertMessageEntity(String content) throws Exception {
+        doInTransaction(new Runnable() {
+            @Override
+            public void run() {
+                Message helloWorldMessage = createAndPersistNewMessage(content);
+                Message helloWorldMessageFromDatabase = entityManager.find(Message.class, helloWorldMessage.getId());
+                assertNotNull(helloWorldMessageFromDatabase);
+                assertNotSame(helloWorldMessage, helloWorldMessageFromDatabase);
+            }
+        });
+    }
 
-        Message helloWorldMessage = createAndPersistNewMessage("hello world");
-        Message helloWorldMessageFromDatabase = entityManager.find(Message.class, helloWorldMessage.getId());
-        assertNotNull(helloWorldMessageFromDatabase);
-        assertNotSame(helloWorldMessage, helloWorldMessageFromDatabase);
-
-        userTransaction.commit();
+    private void updateMessageEntity(String content) throws Exception {
+        doInTransaction(new Runnable() {
+            @Override
+            public void run() {
+                TypedQuery<Message> query = entityManager.createQuery(String.format("from %s", Message.class.getName(), Message.class), Message.class);
+                query.getSingleResult().setContent(content);
+            }
+        });
     }
 
     private void deleteAllMessageEntities() throws Exception {
-        userTransaction.begin();
-        String sql = String.format("delete from %s", Message.class.getName());
-        Query query = entityManager.createQuery(sql);
-        query.executeUpdate();
-        userTransaction.commit();
+        doInTransaction(new Runnable() {
+            @Override
+            public void run() {
+                String sql = String.format("delete from %s", Message.class.getName());
+                Query query = entityManager.createQuery(sql);
+                query.executeUpdate();
+            }
+        });
         assertNoLuceneDatabaseWorkItemsInDatabase();
     }
 
@@ -140,22 +172,24 @@ public class DatabaseBackendQueueProcessorIT {
     }
 
     private void indexRightNow() throws Exception {
-        userTransaction.begin();
-
-        AbstractDatabaseHibernateSearchController abstractDatabaseHibernateSearchController = new AbstractDatabaseHibernateSearchController() {
+        doInTransaction(new Runnable() {
             @Override
-            protected Session getSession() {
-                return (Session) entityManager.getDelegate();
-            }
+            public void run() {
+                AbstractDatabaseHibernateSearchController abstractDatabaseHibernateSearchController = new AbstractDatabaseHibernateSearchController() {
+                    @Override
+                    protected Session getSession() {
+                        return (Session) entityManager.getDelegate();
+                    }
 
-            @Override
-            protected void cleanSessionIfNeeded(Session session) {
-                session.close();
-            }
-        };
+                    @Override
+                    protected void cleanSessionIfNeeded(Session session) {
+                        session.close();
+                    }
+                };
 
-        abstractDatabaseHibernateSearchController.processWorkQueue();
-        userTransaction.commit();
+                abstractDatabaseHibernateSearchController.processWorkQueue();
+            }
+        });
     }
 
     private Message createAndPersistNewMessage(String messageContent) {
@@ -166,5 +200,20 @@ public class DatabaseBackendQueueProcessorIT {
         entityManager.clear();
         assertNotNull(helloWorldMessage.getId());
         return helloWorldMessage;
+    }
+
+    private void doInTransaction(Runnable runnable) {
+        try {
+            userTransaction.begin();
+            runnable.run();
+        } catch (Exception e) {
+            throw new RuntimeException(e);
+        } finally {
+            try {
+                userTransaction.commit();
+            } catch (Exception e) {
+                throw new RuntimeException(e);
+            }
+        }
     }
 }
