@@ -1,0 +1,9 @@
+RULE instrument apply updates
+
+CLASS org.hibernate.search.backend.impl.lucene.LuceneBackendQueueTask
+METHOD applyUpdates
+AT ENTRY
+IF System.getProperty("LuceneBackendQueueTask.applyUpdates.throwRuntimeException","false").equals("true")
+DO throw java.lang.RuntimeException("oh no!")
+ENDRULE
+

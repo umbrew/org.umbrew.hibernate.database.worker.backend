@@ -100,9 +100,10 @@ public abstract class AbstractDatabaseHibernateSearchController {
      */
     public void processWorkQueue() {
 
-        final Session session = getSession();
-        final SearchFactoryImplementor factory = (SearchFactoryImplementor) new FullTextSessionImpl(session).getSearchFactory();
+        Session session = getSession();
+        SearchFactoryImplementor factory = (SearchFactoryImplementor) new FullTextSessionImpl(session).getSearchFactory();
         IndexManagerHolder indexManagerHolder = factory.getIndexManagerHolder();
+        
         try {
 
             DoWithEntityManager.execute(new DoWithEntityManagerTask() {

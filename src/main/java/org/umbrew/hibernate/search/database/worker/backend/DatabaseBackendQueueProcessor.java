@@ -96,7 +96,7 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         this.showSql = props.getProperty(SHOW_SQL, "false");
         this.formatSql = props.getProperty(FORMAT_SQL, "false");
         this.jtaPlatform = props.getProperty(JTA_PLATFORM, JBossAppServerJtaPlatform.class.getName());
-
+        
         logConfiguration();
 
         validate();

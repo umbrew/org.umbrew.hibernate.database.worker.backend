@@ -10,7 +10,7 @@
 			<property name="jbossHome">${jboss.home}</property>
 			<property name="allowConnectingToRunningServer">false</property>
 			<property name="outputToConsole">true</property>
-			<property name="javaVmArguments">-Darquillian.debug=false -Djava.net.preferIPv4Stack=true -Xms128m -Xmx512m -agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=n</property>
+			<property name="javaVmArguments">-Darquillian.debug=false -Djava.net.preferIPv4Stack=true -Xms128m -Xmx512m -Djboss.modules.system.pkgs=org.jboss.byteman -Dorg.jboss.byteman.verbose=true -Dorg.jboss.byteman.debug=true -javaagent:${jboss.home}/../byteman.jar=listener:true,boot:${jboss.home}/../byteman.jar,script:${jboss.home}/../../src/test/resources/integrationtestrules.btm -agentlib:jdwp=transport=dt_socket,address=8787,server=y,suspend=n</property>
 		</configuration>
 	</container>
 </arquillian>

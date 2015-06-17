@@ -45,7 +45,7 @@ import org.jboss.arquillian.junit.Arquillian;
 import org.jboss.shrinkwrap.api.ShrinkWrap;
 import org.jboss.shrinkwrap.api.asset.EmptyAsset;
 import org.jboss.shrinkwrap.api.spec.WebArchive;
-import org.junit.Before;
+import org.junit.After;
 import org.junit.Test;
 import org.junit.runner.RunWith;
 import org.umbrew.hibernate.search.database.worker.backend.impl.AbstractDatabaseHibernateSearchController;
@@ -59,6 +59,8 @@ import org.umbrew.model.Message;
 @RunWith(Arquillian.class)
 public class DatabaseBackendQueueProcessorIT {
 
+    private final static String SYSTEM_PROPERTY_BYTEMAN_APPLYUPDATES_THROW_RUNTIMEEXCEPTION = "LuceneBackendQueueTask.applyUpdates.throwRuntimeException";
+
     @PersistenceContext(name = "hibernate.search.database.worker.backend-persistence-unit")
     private EntityManager entityManager;
 
@@ -71,6 +73,47 @@ public class DatabaseBackendQueueProcessorIT {
                 .addPackage(DatabaseBackendQueueProcessor.class.getPackage()).addClass(AbstractDatabaseHibernateSearchController.class)
                 .addAsResource("persistence.xml", "META-INF/persistence.xml").addAsWebInfResource("jboss-deployment-structure.xml", "jboss-deployment-structure.xml")
                 .addAsWebInfResource(EmptyAsset.INSTANCE, "beans.xml");
+    }
+
+    @Test
+    public void testIndexing_whenIndexingFails_thenErrorHandlerComesToTheRescue() throws Exception {
+
+        // Given
+        // ....that indexing fails
+        insertMessageEntity("hello world");
+        assertEquals(1, countLuceneDatabaseWorkEntities());
+        makeHibernateSearchIndexAttemptsFail();
+        indexRightNow();
+        assertEquals(1, countLuceneDatabaseWorkEntities());
+
+        // When
+        // ....it succeeds the next time
+        makeHibernateSearchIndexAttemptsSucceed();
+        indexRightNow();
+        List<Message> allIndexedMessages = findIndexedMessages();
+
+        // Then
+        // ....everything is ok
+        assertEquals(0, countLuceneDatabaseWorkEntities());
+        assertEquals(1, allIndexedMessages.size());
+    }
+
+    @Test
+    public void testIndexing_whenIndexingFails_thenErrorHandlerSavesLuceneWorksToDatabaseAgain() throws Exception {
+
+        // Given
+        insertMessageEntity("hello world");
+        assertEquals(1, countLuceneDatabaseWorkEntities());
+
+        // When
+        // ....indexing fails
+        makeHibernateSearchIndexAttemptsFail();
+        indexRightNow();
+
+        // Then
+        // ....the failed LuceneDatabaseWork entities are restored in the "job queue"
+        assertThatThereAreNoIndexedMessages();
+        assertEquals(1, countLuceneDatabaseWorkEntities());
     }
 
     @Test
@@ -107,11 +150,25 @@ public class DatabaseBackendQueueProcessorIT {
         assertEquals(0, countLuceneDatabaseWorkEntities());
     }
 
-    @Before
+    @After
     public void tearDown() throws Exception {
+        makeHibernateSearchIndexAttemptsSucceed();
         deleteAllMessageEntities();
-        indexRightNow();
+        deleteAllLuceneDatabaseWorkEntities();
         assertNoLuceneDatabaseWorkItemsInDatabase();
+    }
+
+    private void assertThatThereAreNoIndexedMessages() {
+        List<Message> allIndexedMessages = findIndexedMessages();
+        assertEquals(0, allIndexedMessages.size());
+    }
+
+    private void makeHibernateSearchIndexAttemptsFail() {
+        System.setProperty(SYSTEM_PROPERTY_BYTEMAN_APPLYUPDATES_THROW_RUNTIMEEXCEPTION, Boolean.TRUE.toString());
+    }
+
+    private void makeHibernateSearchIndexAttemptsSucceed() {
+        System.getProperties().remove(SYSTEM_PROPERTY_BYTEMAN_APPLYUPDATES_THROW_RUNTIMEEXCEPTION);
     }
 
     @SuppressWarnings("unchecked")
@@ -152,6 +209,17 @@ public class DatabaseBackendQueueProcessorIT {
         });
     }
 
+    private void deleteAllLuceneDatabaseWorkEntities() {
+        doInTransaction(new Runnable() {
+            @Override
+            public void run() {
+                String sql = String.format("delete from %s", LuceneDatabaseWork.class.getName());
+                Query query = entityManager.createQuery(sql);
+                query.executeUpdate();
+            }
+        });
+    }
+
     private void deleteAllMessageEntities() throws Exception {
         doInTransaction(new Runnable() {
             @Override
@@ -161,7 +229,6 @@ public class DatabaseBackendQueueProcessorIT {
                 query.executeUpdate();
             }
         });
-        assertNoLuceneDatabaseWorkItemsInDatabase();
     }
 
     private void assertNoLuceneDatabaseWorkItemsInDatabase() {
@@ -186,7 +253,6 @@ public class DatabaseBackendQueueProcessorIT {
                         session.close();
                     }
                 };
-
                 abstractDatabaseHibernateSearchController.processWorkQueue();
             }
         });

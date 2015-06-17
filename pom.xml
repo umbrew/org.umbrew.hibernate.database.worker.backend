@@ -41,6 +41,7 @@
 		<version.wildfly>8.2.0.Final</version.wildfly>
 		<version.hibernate-entitymanager>4.3.7.Final</version.hibernate-entitymanager>
 		<version.jboss-transaction-api>1.0.1.GA</version.jboss-transaction-api>
+		<version.byteman>3.0.1</version.byteman>
 		<jboss.home>${project.build.directory}/wildfly-${version.wildfly}</jboss.home>
 	</properties>
 	<dependencyManagement>
@@ -97,6 +98,12 @@
 			<groupId>org.hibernate.javax.persistence</groupId>
 			<artifactId>hibernate-jpa-2.0-api</artifactId>
 			<scope>provided</scope>
+		</dependency>
+		<dependency>
+			<groupId>org.jboss.byteman</groupId>
+			<artifactId>byteman</artifactId>
+			<version>${version.byteman}</version>
+			<scope>provided</scope>	
 		</dependency>
 	</dependencies>
 	<build>
@@ -198,6 +205,27 @@
 									</artifactItems>
 								</configuration>
 							</execution>
+							<execution>
+								<id>copybyteman</id>
+								<phase>test</phase>
+								<goals>
+									<goal>copy</goal>
+								</goals>
+								<configuration>
+									<artifactItems>
+										<artifactItem>
+											<groupId>org.jboss.byteman</groupId>
+											<artifactId>byteman</artifactId>
+											<version>${version.byteman}</version>
+											<type>jar</type>
+											<overWrite>false</overWrite>
+											<outputDirectory>${project.build.directory}</outputDirectory>
+											 <destFileName>byteman.jar</destFileName>
+										</artifactItem>
+									</artifactItems>
+								</configuration>
+							</execution>
+							
 						</executions>
 					</plugin>
 				</plugins>
