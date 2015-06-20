@@ -68,12 +68,24 @@ public class DatabaseHibernateSearchController extends AbstractDatabaseHibernate
 
 The above example illustrates how to use an EJB singleton component to schedule a quartzjob - which then again, periodically invokes the `processWorkQueue()` method.
 
-Alternatively, if your EJB container already supports clusterwide Timer beans, then you could also just use that. 
-Or something completely different.
-The choice is all yours.
+Alternatively, if your EJB container already supports clusterwide Timer beans, then you could also just use that. Or something completely different, the choice is all yours.
 
 Just remember one thing: your application must have some "job-like" functionality that periodically calls the  `processWorkQueue()`  method.
 Failure to have this will result in two problems. Firstly, nothing will ever be indexed. Secondly, at some point in time your database will hit excessive disk usage problems - caused by an ever-growing amount of rows in table `lucene_work`.
+
+### Workaround for orphan locks with Infinispan
+
+There is a possibility when running the AbstractDatabaseHibernateSearchController clustered you could end up with orphan locks if you are using Infinispan as directory with replicated/distributed locks and the node crash. This will prevent the IndexWriter to acquire a lock on one of the remaining nodes.
+
+The trick here is you change the LuceneIndexesLocking to a local cache and prevent distributed locks. This will of course only work if the processWorkQueue run exclusive on one node. 
+
+```xml
+ <local-cache name="LuceneIndexesLocking" start="EAGER">
+           <eviction strategy="NONE" max-entries="-1"/>
+            <expiration max-idle="-1"/>
+            <indexing index="NONE"/>
+  </local-cache>
+```
 
 
 ## Configuration
