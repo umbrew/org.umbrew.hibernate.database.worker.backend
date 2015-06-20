@@ -80,11 +80,11 @@ There is a possibility when running the AbstractDatabaseHibernateSearchControlle
 The trick here is you change the LuceneIndexesLocking to a local cache and prevent distributed locks. This will of course only work if the processWorkQueue run exclusive on one node. 
 
 ```xml
- <local-cache name="LuceneIndexesLocking" start="EAGER">
-           <eviction strategy="NONE" max-entries="-1"/>
-            <expiration max-idle="-1"/>
-            <indexing index="NONE"/>
-  </local-cache>
+<local-cache name="LuceneIndexesLocking" start="EAGER">
+   <eviction strategy="NONE" max-entries="-1"/>
+   <expiration max-idle="-1"/>
+   <indexing index="NONE"/>
+</local-cache>
 ```
 
 
