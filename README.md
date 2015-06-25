@@ -77,7 +77,7 @@ Failure to have this will result in two problems. Firstly, nothing will ever be 
 
 There is a possibility when running the AbstractDatabaseHibernateSearchController clustered you could end up with orphan locks if you are using Infinispan as directory with replicated/distributed locks and the node crash. This will prevent the IndexWriter to acquire a lock on one of the remaining nodes.
 
-The trick here is you change the LuceneIndexesLocking to a local cache and prevent distributed locks. This will of course only work if the processWorkQueue run exclusive on one node. 
+The trick here is to change the LuceneIndexesLocking to a local cache and prevent distributed locks. This will of course only work if processWorkQueue run exclusive on one node. 
 
 ```xml
 <local-cache name="LuceneIndexesLocking" start="EAGER">
