@@ -35,6 +35,7 @@ import javax.persistence.EntityManager;
 import javax.persistence.spi.PersistenceUnitTransactionType;
 import javax.transaction.TransactionManager;
 
+import org.hibernate.cfg.AvailableSettings;
 import org.hibernate.engine.jdbc.dialect.internal.StandardDialectResolver;
 import org.hibernate.engine.transaction.jta.platform.internal.AbstractJtaPlatform;
 import org.hibernate.engine.transaction.jta.platform.internal.JBossAppServerJtaPlatform;
@@ -50,6 +51,7 @@ import org.hibernate.search.backend.spi.BackendQueueProcessor;
 import org.hibernate.search.indexes.impl.DirectoryBasedIndexManager;
 import org.hibernate.search.indexes.serialization.spi.LuceneWorkSerializer;
 import org.hibernate.search.spi.WorkerBuildContext;
+import org.hibernate.search.util.configuration.impl.MaskedProperty;
 import org.hibernate.search.util.logging.impl.Log;
 import org.hibernate.search.util.logging.impl.LoggerFactory;
 import org.umbrew.hibernate.search.database.worker.backend.DoWithEntityManager.DoWithEntityManagerTask;
@@ -64,12 +66,10 @@ import org.umbrew.hibernate.search.database.worker.backend.model.LuceneDatabaseW
 public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     // Configuration properties
-    public static final String JTA_TRANSACTION_MANAGER_JNDI_NAME = Environment.WORKER_PREFIX + "jta.transactionmanager";
-    public static final String JTA_PLATFORM = Environment.WORKER_PREFIX + "jta.platform";
-    public static final String DATA_SOURCE_JNDI_NAME = Environment.WORKER_PREFIX + "jdbc.datasource";
-    public static final String AUTO_DDL = Environment.WORKER_PREFIX + "jdbc.datasource.ddl.auto";
-    public static final String SHOW_SQL = Environment.WORKER_PREFIX + "jdbc.sql.show";
-    public static final String FORMAT_SQL = Environment.WORKER_PREFIX + "jdbc.sql.format";
+    public static final String HIBERNATE_PREFIX_FIRST_PART = Environment.WORKER_BACKEND + ".";
+    public static final String HIBERNATE_PREFIX = HIBERNATE_PREFIX_FIRST_PART + "hibernate.";
+    public static final String HIBERATE_CONNECTION_DATASOURCE = HIBERNATE_PREFIX_FIRST_PART + AvailableSettings.DATASOURCE;
+    public static final String HIBERNATE_JTA_PLATFORM = HIBERNATE_PREFIX_FIRST_PART + AvailableSettings.JTA_PLATFORM;
 
     private static final Log log = LoggerFactory.make();
 
@@ -79,10 +79,6 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
 
     // Configuration values
     private String jtaPlatform;
-    private String dataSourceJndiName;
-    private String autoDDL;
-    private String showSql;
-    private String formatSql;
 
     @Override
     public void initialize(Properties props, WorkerBuildContext context, DirectoryBasedIndexManager indexManager) {
@@ -91,17 +87,11 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         this.indexManager = indexManager;
         this.indexName = indexManager.getIndexName();
         this.delegatedBackend = BackendFactory.createBackend("lucene", indexManager, context, props);
-        this.dataSourceJndiName = props.getProperty(DATA_SOURCE_JNDI_NAME);
-        this.autoDDL = props.getProperty(AUTO_DDL, "update");
-        this.showSql = props.getProperty(SHOW_SQL, "false");
-        this.formatSql = props.getProperty(FORMAT_SQL, "false");
-        this.jtaPlatform = props.getProperty(JTA_PLATFORM, JBossAppServerJtaPlatform.class.getName());
-        
-        logConfiguration();
+        this.jtaPlatform = props.getProperty(HIBERNATE_JTA_PLATFORM, JBossAppServerJtaPlatform.class.getName());
 
-        validate();
+        validate(props);
 
-        initializeEntityManagerFactoryHolder();
+        initializeEntityManagerFactoryHolder((MaskedProperty) props);
 
         intializeTransactionManagerHolder();
 
@@ -146,25 +136,9 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         // no-op
     }
 
-    private void logConfiguration() {
-        if (log.isDebugEnabled()) {
-            log.debug(">> Configuration");
-            logProperty(JTA_PLATFORM, jtaPlatform);
-            logProperty(DATA_SOURCE_JNDI_NAME, dataSourceJndiName);
-            logProperty(AUTO_DDL, autoDDL);
-            logProperty(SHOW_SQL, showSql);
-            logProperty(FORMAT_SQL, formatSql);
-            log.debug("<< Configuration");
-        }
-    }
-
-    private void logProperty(String propertyName, String propertyValue) {
-        log.debug(String.format("  Property %-35s => [%s]", String.format("[%s]", propertyName), propertyValue));
-    }
-
-    private void validate() {
-        if (this.dataSourceJndiName == null) {
-            throw log.configuratioPropertyCantBeEmpty(DATA_SOURCE_JNDI_NAME);
+    private void validate(Properties props) {
+        if (props.getProperty(HIBERATE_CONNECTION_DATASOURCE) == null) {
+            throw log.configuratioPropertyCantBeEmpty(HIBERATE_CONNECTION_DATASOURCE);
         }
     }
 
@@ -237,17 +211,27 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
         }
     }
 
-    private synchronized void initializeEntityManagerFactoryHolder() {
-
+    private synchronized void initializeEntityManagerFactoryHolder(MaskedProperty props) {
         if (EntityManagerFactoryHolder.getEntityManagerFactory() == null) {
             Map<String, String> settings = new HashMap<String, String>();
 
-            settings.put("hibernate.connection.datasource", this.dataSourceJndiName);
-            settings.put("hibernate.hbm2ddl.auto", this.autoDDL);
-            settings.put("hibernate.show_sql", showSql);
-            settings.put("hibernate.format_sql", formatSql);
-            settings.put("hibernate.dialect_resolvers", StandardDialectResolver.class.getName());
-            settings.put("hibernate.transaction.jta.platform", jtaPlatform);
+            for (Object key : props.keySet()) {
+                String property = key.toString();
+                if (property.startsWith(HIBERNATE_PREFIX)) {
+                    String value = props.getProperty(property).toString();
+                    property = property.substring(HIBERNATE_PREFIX_FIRST_PART.length());
+                    log.debugf("Setting property \"%s\" to \"%s\" for internal entity manager", property, value);
+                    settings.put(property, value);
+                } else {
+                    log.tracef("Ignoring property \"%s\" for internal entity manager", property);
+                }
+            }
+
+            putIfNotPresent(settings, "hibernate.hbm2ddl.auto", "update");
+            putIfNotPresent(settings, "hibernate.show_sql", "false");
+            putIfNotPresent(settings, "hibernate.format_sql", "false");
+            putIfNotPresent(settings, "hibernate.dialect_resolvers", StandardDialectResolver.class.getName());
+            putIfNotPresent(settings, "hibernate.transaction.jta.platform", jtaPlatform);
 
             ParsedPersistenceXmlDescriptor deploymentDescriptor = new ParsedPersistenceXmlDescriptor(null);
             deploymentDescriptor.addClasses(LuceneDatabaseWork.class.getName());
@@ -256,7 +240,12 @@ public class DatabaseBackendQueueProcessor implements BackendQueueProcessor {
             builder.buildServiceRegistry();
             EntityManagerFactoryHolder.setEntityManagerFactory(builder.build());
         }
-
     }
 
+    private void putIfNotPresent(Map<String, String> settings, String property, String value) {
+        if (!settings.containsKey(property)) {
+            log.debugf("Setting property \"%s\" to default \"%s\" for internal entity manager", property, value);
+            settings.put(property, value);
+        }
+    }
 }
