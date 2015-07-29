@@ -22,6 +22,8 @@ That's easy
 
 > &#60;property name="hibernate.search.default.worker.backend" value="org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor"/&#62;
 
+> &#60;property name="hibernate.search.default.worker.backend.hibernate.connection.datasource" value="REPLACE_ME"/&#62;
+
 ### Create a Job for processing Lucene workers
 You will have to do a little work for yourself: create a job or HA singleton that is only running on a single node at a each time. 
 
@@ -94,12 +96,13 @@ The following configuration is supported in the persistence.xml
 | Key  | Value   |
 |---|---|
 |hibernate.search.default.worker.backend   |org.umbrew.hibernate.search.database.worker.backend.DatabaseBackendQueueProcessor|
-|hibernate.search.default.worker.jta.platform   | Set the supported JTA platform. Default "org.hibernate.engine.transaction.jta.platform.internal.JBossAppServerJtaPlatform"   |
-|hibernate.search.default.worker.jdbc.datasource   | Set the datasource the worker should connect to |
-|hibernate.search.default.worker.jdbc.datasource.ddl.auto   | Set the schema creation mode. Defaults to "update" (Follow hibernate semantic) |
-|hibernate.search.default.worker.jdbc.sql.show   | Show the executed SQL. Defaults to "false"  |
-|hibernate.search.default.worker.jdbc.sql.format   | Pretty print the executed SQL. Default to "false"  |
+|hibernate.search.default.worker.backend.hibernate.transaction.jta.platform   | Set the supported JTA platform. Default "org.hibernate.engine.transaction.jta.platform.internal.JBossAppServerJtaPlatform"   |
+|hibernate.search.default.worker.backend.hibernate.connection.datasource   | Set the datasource the worker should connect to |
+|hibernate.search.default.worker.backend.hibernate.hbm2ddl.auto   | Set the schema creation mode. Defaults to "update" (Follow hibernate semantic) |
+|hibernate.search.default.worker.backend.hibernate.show_sql   | Show the executed SQL. Defaults to "false"  |
+|hibernate.search.default.worker.backend.hibernate.format_sql   | Pretty print the executed SQL. Default to "false"  |
 
+Other Hibernate properties are supported, prefixed with `hibernate.search.default.worker.backend.`.
 
 ## How do I build it?
 
